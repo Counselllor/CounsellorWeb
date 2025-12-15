@@ -1,19 +1,26 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { getColleges } from "../api/api";
 
 function Colleges() {
   const [colleges, setColleges] = useState([]);
   const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch all colleges
   useEffect(() => {
     const fetchColleges = async () => {
       try {
-        const { data } = await axios.get("http://localhost:5000/api/colleges");
+        setIsLoading(true);
+        const { data } = await getColleges();
         setColleges(data);
+        setError(null);
       } catch (err) {
         console.error("Error fetching colleges:", err);
+        setError("Failed to load colleges. Please try again later.");
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchColleges();
@@ -48,9 +55,22 @@ function Colleges() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <p className="text-center text-red-500 text-lg mt-10">{error}</p>
+      )}
+
       {/* Colleges Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-10">
-        {filteredColleges.map((college) => (
+      {!isLoading && !error && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-10">
+          {filteredColleges.map((college) => (
           <Link
             to={`/colleges/${college.slug}`}
             key={college._id}
@@ -93,12 +113,13 @@ function Colleges() {
                 </a>
               )}
             </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* No results message */}
-      {filteredColleges.length === 0 && (
+      {!isLoading && !error && filteredColleges.length === 0 && (
         <p className="text-center text-gray-500 text-lg mt-10">
           No colleges found matching your search 🔍
         </p>

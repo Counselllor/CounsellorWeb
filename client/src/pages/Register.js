@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axios from "axios";
-import { useEffect } from "react";
+import { getColleges, registerUser } from "../api/api";
 
 function Register() {
   const [form, setForm] = useState({
@@ -15,17 +14,23 @@ function Register() {
     captcha: "",
   });
 
-  const [captcha, setCaptcha] = useState("X7Pq"); // Initial captcha  
-  const [colleges, setColleges] = useState([]); // State for colleges ✅
+  const [captcha, setCaptcha] = useState("");
+  const [colleges, setColleges] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
+
+  // Generate initial captcha
+  useEffect(() => {
+    refreshCaptcha();
+  }, []);
 
   // Fetch colleges from API
   useEffect(() => {
     const fetchColleges = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/colleges"); // <-- your API
-        setColleges(res.data);
+        const { data } = await getColleges();
+        setColleges(data);
       } catch (err) {
         console.error("Error fetching colleges:", err);
         toast.error("Failed to load colleges");
@@ -34,8 +39,6 @@ function Register() {
 
     fetchColleges();
   }, []);
-
-
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -49,14 +52,16 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate captcha  
+    // Validate captcha
     if (form.captcha !== captcha) {
       toast.error("Captcha validation failed!");
+      refreshCaptcha();
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/register", {
+      const { data } = await registerUser({
         name: form.name,
         username: form.username,
         email: form.email,
@@ -64,11 +69,14 @@ function Register() {
         college: form.college,
       });
 
-      localStorage.setItem("user", JSON.stringify(res.data));
+      localStorage.setItem("user", JSON.stringify(data));
       toast.success("Registered successfully!");
       navigate("/login");
     } catch (err) {
       toast.error("Error: " + (err.response?.data?.message || "Something went wrong"));
+      refreshCaptcha();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -179,9 +187,10 @@ function Register() {
             {/* Register Button */}
             <button
               type="submit"
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg py-2 transition"
+              disabled={isSubmitting}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-lg py-2 transition"
             >
-              Register
+              {isSubmitting ? "Registering..." : "Register"}
             </button>
           </form>
 

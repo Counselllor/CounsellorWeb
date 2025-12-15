@@ -1,54 +1,61 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useState, useCallback } from "react";
+import { toast } from "react-toastify";
+import { getColleges, createCollege, deleteCollege as deleteCollegeAPI } from "../api/api";
 
 function AdminColleges() {
   const [colleges, setColleges] = useState([]);
   const [form, setForm] = useState({ name: "", location: "", address: "", description: "", email: "", phone: "", websiteUrl: "", imageUrl: "" });
-  const token = JSON.parse(localStorage.getItem("user"))?.token;
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch colleges
-  useEffect(() => {
-    fetchColleges();
-  }, []);
-
-  const fetchColleges = async () => {
+  const fetchColleges = useCallback(async () => {
     try {
-      const { data } = await axios.get("http://localhost:5000/api/colleges");
+      setIsLoading(true);
+      const { data } = await getColleges();
       setColleges(data);
     } catch (err) {
       console.error(err);
+      toast.error("Failed to load colleges");
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchColleges();
+  }, [fetchColleges]);
 
   // Add new college
   const addCollege = async (e) => {
-  e.preventDefault();
-  try {
-    await axios.post(
-      "http://localhost:5000/api/colleges",
-      form,    // ✅ send all fields
-      { headers: { Authorization: `Bearer ${token}` } } // ✅ send JWT
-    );
-    setForm({ name: "", location: "", address: "", description: "", email: "", phone: "", websiteUrl: "", imageUrl: "" });
-    fetchColleges(); // refresh list
-  } catch (err) {
-    console.error("Add error:", err.response?.data || err.message);
-    alert(err.response?.data?.message || "Error adding college");
-  }
-};
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await createCollege(form);
+      setForm({ name: "", location: "", address: "", description: "", email: "", phone: "", websiteUrl: "", imageUrl: "" });
+      fetchColleges(); // refresh list
+      toast.success("College added successfully!");
+    } catch (err) {
+      console.error("Add error:", err.response?.data || err.message);
+      toast.error(err.response?.data?.message || "Error adding college");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Delete college
-  const deleteCollege = async (id) => {
-  try {
-    await axios.delete(`http://localhost:5000/api/colleges/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchColleges(); // refresh after deleting
-  } catch (err) {
-    console.error("Delete error:", err.response?.data || err.message);
-    alert(err.response?.data?.message || "Error deleting college");
-  }
-};
+  const handleDeleteCollege = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this college?")) return;
+
+    try {
+      await deleteCollegeAPI(id);
+      fetchColleges(); // refresh after deleting
+      toast.success("College deleted successfully!");
+    } catch (err) {
+      console.error("Delete error:", err.response?.data || err.message);
+      toast.error(err.response?.data?.message || "Error deleting college");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-10">
@@ -116,31 +123,41 @@ function AdminColleges() {
 
         <button
           type="submit"
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          disabled={isSubmitting}
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:bg-green-400"
         >
-          ➕ Add College
+          {isSubmitting ? "Adding..." : "➕ Add College"}
         </button>
       </form>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center py-10">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+
       {/* List of Colleges */}
-      <div className="grid gap-4">
-      {colleges.map((college) => (
-  <div key={college._id} className="p-5 bg-white shadow flex justify-between items-center rounded">
-    <div>
-      <h2 className="font-semibold">{college.name}</h2>
-      <p className="text-gray-500">📍 {college.location}</p>
-      {college.description && <p className="text-gray-600">{college.description}</p>}
-      {college.email && <p className="text-gray-600">📧 {college.email}</p>}
-    </div>
-    <button
-      onClick={() => deleteCollege(college._id)}   // ✅ use _id
-      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-    >
-      🗑 Delete
-    </button>
-  </div>
-))}
-      </div>
+      {!isLoading && (
+        <div className="grid gap-4">
+          {colleges.map((college) => (
+            <div key={college._id} className="p-5 bg-white shadow flex justify-between items-center rounded">
+              <div>
+                <h2 className="font-semibold">{college.name}</h2>
+                <p className="text-gray-500">📍 {college.location}</p>
+                {college.description && <p className="text-gray-600">{college.description}</p>}
+                {college.email && <p className="text-gray-600">📧 {college.email}</p>}
+              </div>
+              <button
+                onClick={() => handleDeleteCollege(college._id)}
+                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+              >
+                🗑 Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

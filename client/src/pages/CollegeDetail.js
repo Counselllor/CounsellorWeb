@@ -1,40 +1,74 @@
 // client/src/pages/CollegeDetail.js
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { toast } from "react-toastify";
+import { getCollegeBySlug, getStudentsByCollege, sendConnectionRequest } from "../api/api";
 
 export default function CollegeDetail() {
   const { slug } = useParams();
   const [college, setCollege] = useState(null);
   const [students, setStudents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
- useEffect(() => {
-  axios.get(`http://localhost:5000/api/colleges/${slug}`)
-    .then(res => {
-      if (!res.data || res.data.message) {
-        throw new Error("College not found");
+  useEffect(() => {
+    const fetchCollegeData = async () => {
+      try {
+        setIsLoading(true);
+        const collegeRes = await getCollegeBySlug(slug);
+
+        if (!collegeRes.data || collegeRes.data.message) {
+          throw new Error("College not found");
+        }
+
+        setCollege(collegeRes.data);
+
+        // Fetch students from this college
+        try {
+          const studentsRes = await getStudentsByCollege(collegeRes.data._id);
+          setStudents(studentsRes.data);
+        } catch {
+          // Students fetch may fail if no students - that's okay
+          setStudents([]);
+        }
+
+        setError(null);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load college details");
+        setCollege(null);
+      } finally {
+        setIsLoading(false);
       }
-      setCollege(res.data);
+    };
 
-      return axios.get(`http://localhost:5000/api/students/college/${res.data._id}`);
-    })
-    .then(res => setStudents(res.data))
-    .catch(err => {
-      console.error(err);
-      setCollege(null); // helps show fallback message
-    });
-}, [slug]);
+    fetchCollegeData();
+  }, [slug]);
 
   const sendRequest = async (studentId) => {
-    await axios.post(
-      "/api/connections",
-      { to: studentId, level: 1 },
-      { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-    );
-    alert("Request Sent!");
+    try {
+      await sendConnectionRequest(studentId, 1);
+      toast.success("Connection request sent!");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send request");
+    }
   };
 
-  if (!college) return <p>Loading...</p>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !college) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-red-500 text-lg">{error || "College not found"}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-6 p-6">

@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useState } from "react";
 import Footer from "../components/Footer";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { getCurrentUser, updateUserProfile } from "../api/api";
 
 function Profile() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     firstname: "",
     surname: "",
@@ -22,20 +23,17 @@ function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/auth/me", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { data } = await getCurrentUser();
 
-        setUser(res.data);
+        setUser(data);
         setFormData({
-          firstname: res.data.firstname || "",
-          surname: res.data.surname || "",
-          bio: res.data.bio || "",
-          college: res.data.college?.name || "",
-          course: res.data.course || "",
-          year: res.data.year || "",
-          email: res.data.email || ""
+          firstname: data.firstname || "",
+          surname: data.surname || "",
+          bio: data.bio || "",
+          college: data.college?.name || "",
+          course: data.course || "",
+          year: data.year || "",
+          email: data.email || ""
         });
       } catch (err) {
         console.error(err);
@@ -54,17 +52,17 @@ function Profile() {
   };
 
   const saveProfile = async () => {
+    setIsSaving(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.put("http://localhost:5000/api/users/update", formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUser(res.data);
+      const { data } = await updateUserProfile(formData);
+      setUser(data);
       setEditMode(false);
       toast.success("✅ Profile updated successfully");
     } catch (err) {
       console.error(err);
       toast.error("❌ Error updating profile");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -159,16 +157,18 @@ function Profile() {
 
               <div className="flex gap-2">
                 <button
-                  className="bg-gray-400 text-white px-4 py-2 rounded"
+                  className="bg-gray-400 text-white px-4 py-2 rounded disabled:opacity-50"
                   onClick={() => setEditMode(false)}
+                  disabled={isSaving}
                 >
                   Cancel
                 </button>
                 <button
-                  className="bg-green-600 text-white px-4 py-2 rounded"
+                  className="bg-green-600 text-white px-4 py-2 rounded disabled:bg-green-400"
                   onClick={saveProfile}
+                  disabled={isSaving}
                 >
-                  Save Changes
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </div>

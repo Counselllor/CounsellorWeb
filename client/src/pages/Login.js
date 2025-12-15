@@ -1,24 +1,46 @@
-import React, { useState } from "react";
-// import { loginUser } from "../api/api";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { loginUser } from "../api/api";
 
 function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
+  const [captcha, setCaptcha] = useState("");
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    refreshCaptcha();
+  }, []);
+
+  const refreshCaptcha = () => {
+    const newCaptcha = Math.random().toString(36).substring(2, 6).toUpperCase();
+    setCaptcha(newCaptcha);
+    setCaptchaInput("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (captchaInput !== captcha) {
+      toast.error("Captcha validation failed!");
+      refreshCaptcha();
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      const { data } = await axios.post("http://localhost:5000/api/auth/login", form);
+      const { data } = await loginUser(form);
       localStorage.setItem("token", data.token);
       toast.success("Logged in successfully");
       navigate("/colleges");
     } catch (err) {
-    toast.error(err.response?.data?.message || "Invalid login");
+      toast.error(err.response?.data?.message || "Invalid login");
+      refreshCaptcha();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -57,17 +79,20 @@ function Login() {
               />
             </div>
 
-            {/* Captcha placeholder */}
+            {/* Captcha */}
             <div className="flex items-center gap-2">
-              <div className="bg-gray-200 px-4 py-2 rounded-md font-mono tracking-widest">
-                ALoX
+              <div className="bg-gray-200 px-4 py-2 rounded-md font-mono tracking-widest select-none">
+                {captcha}
               </div>
               <input
                 type="text"
                 placeholder="Enter Captcha Here"
+                value={captchaInput}
+                onChange={(e) => setCaptchaInput(e.target.value)}
                 className="flex-1 border rounded-lg px-3 py-2"
+                required
               />
-              <button type="button" className="px-2">🔄</button>
+              <button type="button" className="px-2" onClick={refreshCaptcha}>🔄</button>
             </div>
 
             {/* Remember Me */}
@@ -81,9 +106,10 @@ function Login() {
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg py-2 transition"
+              disabled={isSubmitting}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg py-2 transition"
             >
-              Login
+              {isSubmitting ? "Logging in..." : "Login"}
             </button>
           </form>
 

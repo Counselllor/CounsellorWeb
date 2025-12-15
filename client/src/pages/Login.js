@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -34,6 +35,7 @@ function Login() {
     try {
       const { data } = await loginUser(form);
       localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data));
       toast.success("Logged in successfully");
       navigate("/colleges");
     } catch (err) {

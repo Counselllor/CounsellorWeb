@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -8,8 +9,9 @@ function Navbar() {
 
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // clear token 
-    navigate("/login", { replace: true });  // redirect to login immediately
+    localStorage.removeItem("token"); // remove token when user logout 
+    localStorage.removeItem("user"); // remove user data when user logout
+    navigate("/login", { replace: true });
     window.location.reload();
   };
 

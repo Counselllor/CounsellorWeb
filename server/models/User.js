@@ -25,12 +25,18 @@ const userSchema = new mongoose.Schema(
     course: { type: String, trim: true },
     year: { type: String, trim: true },
 
-    // Skills and rating  
-    skills: [{ type: String, trim: true }], // You can use an array if skills are multiple  
-    rating: { type: Number, default: 0, min: 0, max: 5 }, // Rating between 0 and 5  
+    // Skills and rating
+    skills: [{ type: String, trim: true }], // You can use an array if skills are multiple
+    rating: { type: Number, default: 0, min: 0, max: 5 }, // Rating between 0 and 5
 
   },
-  { timestamps: true } // Automatically adds createdAt and updatedAt fields  
+  { timestamps: true } // Automatically adds createdAt and updatedAt fields
 );
 
-module.exports = mongoose.model("User", userSchema);  
+// Index for querying users by college (improves performance for college-based lookups)
+userSchema.index({ college: 1 });
+
+// Compound index for role-based queries within a college
+userSchema.index({ college: 1, role: 1 });
+
+module.exports = mongoose.model("User", userSchema);

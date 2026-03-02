@@ -18,6 +18,7 @@ import {
 import Footer from "../components/Footer";
 
 function NotificationsPage() {
+    // eslint-disable-next-line no-unused-vars
     const navigate = useNavigate();
     const socketCtx = useSocket();
 
@@ -253,8 +254,8 @@ function NotificationsPage() {
                                 key={f.key}
                                 onClick={() => setFilter(f.key)}
                                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${filter === f.key
-                                        ? "bg-blue-600 text-white shadow-md"
-                                        : "bg-white text-gray-600 border border-gray-300 hover:bg-gray-50"
+                                    ? "bg-blue-600 text-white shadow-md"
+                                    : "bg-white text-gray-600 border border-gray-300 hover:bg-gray-50"
                                     }`}
                             >
                                 <span aria-hidden="true">{f.icon}</span>
@@ -288,8 +289,8 @@ function NotificationsPage() {
                                 <div
                                     key={notification._id}
                                     className={`bg-white rounded-xl border transition-all hover:shadow-md ${!notification.isRead
-                                            ? "border-blue-200 bg-blue-50/50 shadow-sm"
-                                            : "border-gray-200"
+                                        ? "border-blue-200 bg-blue-50/50 shadow-sm"
+                                        : "border-gray-200"
                                         }`}
                                 >
                                     <div className="p-4">
@@ -356,8 +357,8 @@ function NotificationsPage() {
                                                 {/* Action taken badge */}
                                                 {notification._actionTaken && (
                                                     <span className={`inline-block mt-2 px-2.5 py-1 text-xs font-medium rounded-full ${notification._actionTaken === "accepted"
-                                                            ? "bg-green-100 text-green-700"
-                                                            : "bg-gray-100 text-gray-600"
+                                                        ? "bg-green-100 text-green-700"
+                                                        : "bg-gray-100 text-gray-600"
                                                         }`}>
                                                         {notification._actionTaken === "accepted" ? "✓ Accepted" : "✗ Declined"}
                                                     </span>

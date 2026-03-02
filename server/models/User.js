@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
 
     // Role and authentication  
-    role: { type: String, enum: ["user", "counsellor"], default: "user" },
+    role: { type: String, enum: ["user", "counsellor", "admin"], default: "user" },
     isOnline: { type: Boolean, default: false },
     lastSeen: { type: Date, default: Date.now },
 
@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
     // Academic details  
     // college: { type: String, trim: true },
     // college: { type: mongoose.Schema.Types.ObjectId, ref: "College" }, // Reference to College model  
-    college: { type: mongoose.Schema.Types.ObjectId, ref: "College", required: true },
+    college: { type: mongoose.Schema.Types.ObjectId, ref: "College" },
 
     course: { type: String, trim: true },
     year: { type: String, trim: true },
@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema(
     // Skills and rating
     skills: [{ type: String, trim: true }], // You can use an array if skills are multiple
     rating: { type: Number, default: 0, min: 0, max: 5 }, // Rating between 0 and 5
+
+    // Password reset (select: false = never returned in normal queries for security)
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
 
   },
   { timestamps: true } // Automatically adds createdAt and updatedAt fields

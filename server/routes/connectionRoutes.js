@@ -1,16 +1,56 @@
-const express = require("express");
-const protect = require("../middleware/authMiddleware");
-const { sendRequest, acceptRequest, getRequests } = require("../controllers/connectionController");
+/**
+ * Connection Routes
+ * Handles connection requests between users
+ */
 
+const express = require("express");
 const router = express.Router();
 
-// Send request
-router.post("/", protect, sendRequest);
+// Controllers
+const {
+    sendRequest,
+    acceptRequest,
+    rejectRequest,
+    getRequests,
+} = require("../controllers/connectionController");
 
-// Accept request
-router.put("/:id/accept", protect, acceptRequest);
+// Middleware
+const protect = require("../middleware/authMiddleware");
+const {
+    validateConnectionRequest,
+    validateObjectId,
+} = require("../middleware/validators");
 
-// Get requests for logged-in user
+// ===========================================
+// PROTECTED ROUTES
+// ===========================================
+
+/**
+ * @route   POST /api/connections
+ * @desc    Send a connection request
+ * @access  Private
+ */
+router.post("/", protect, validateConnectionRequest, sendRequest);
+
+/**
+ * @route   PUT /api/connections/:id/accept
+ * @desc    Accept a connection request
+ * @access  Private
+ */
+router.put("/:id/accept", protect, validateObjectId, acceptRequest);
+
+/**
+ * @route   PUT /api/connections/:id/reject
+ * @desc    Reject a connection request
+ * @access  Private
+ */
+router.put("/:id/reject", protect, validateObjectId, rejectRequest);
+
+/**
+ * @route   GET /api/connections
+ * @desc    Get all connection requests for logged-in user
+ * @access  Private
+ */
 router.get("/", protect, getRequests);
 
 module.exports = router;

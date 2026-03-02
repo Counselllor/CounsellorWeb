@@ -1,5 +1,12 @@
+/**
+ * College Routes
+ * CRUD operations for college management
+ */
+
 const express = require("express");
 const router = express.Router();
+
+// Controllers
 const {
   addCollege,
   getColleges,
@@ -8,22 +15,67 @@ const {
   getCollegeBySlug,
 } = require("../controllers/collegeController");
 
+// Middleware
 const protect = require("../middleware/authMiddleware");
 const adminOnly = require("../middleware/adminMiddleware");
+const { uploadCollegeImage } = require("../config/cloudinary");
+const { validateCollege, validateObjectId } = require("../middleware/validators");
 
-// GET → anyone can view
+// ===========================================
+// PUBLIC ROUTES
+// ===========================================
+
+/**
+ * @route   GET /api/colleges
+ * @desc    Get all colleges
+ * @access  Public
+ */
 router.get("/", getColleges);
 
-// GET -> colleges details by id 
+/**
+ * @route   GET /api/colleges/:slug
+ * @desc    Get college by slug
+ * @access  Public
+ */
 router.get("/:slug", getCollegeBySlug);
 
-// POST → only admin
-router.post("/", protect, adminOnly, addCollege);
+// ===========================================
+// ADMIN ROUTES
+// ===========================================
 
-// PUT → only admin
-router.put("/:id", protect, adminOnly, updateCollege);
+/**
+ * @route   POST /api/colleges
+ * @desc    Create a new college
+ * @access  Admin only
+ */
+router.post(
+  "/",
+  protect,
+  adminOnly,
+  uploadCollegeImage.single("image"),
+  validateCollege,
+  addCollege
+);
 
-// DELETE → only admin
-router.delete("/:id", protect, adminOnly, deleteCollege);
+/**
+ * @route   PUT /api/colleges/:id
+ * @desc    Update college by ID
+ * @access  Admin only
+ */
+router.put(
+  "/:id",
+  protect,
+  adminOnly,
+  validateObjectId,
+  uploadCollegeImage.single("image"),
+  updateCollege
+);
+
+/**
+ * @route   DELETE /api/colleges/:id
+ * @desc    Delete college by ID
+ * @access  Admin only
+ */
+router.delete("/:id", protect, adminOnly, validateObjectId, deleteCollege);
 
 module.exports = router;

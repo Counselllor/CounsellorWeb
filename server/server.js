@@ -3,7 +3,7 @@
  * Express server with MongoDB, Socket.IO (authenticated rooms + DM), and security middleware
  */
 
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 const express = require("express");
 const http = require("http");

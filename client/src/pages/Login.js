@@ -327,7 +327,7 @@ function Login() {
           <div className="hidden md:flex bg-gradient-to-br from-blue-100 to-purple-100 justify-center items-center p-8">
             <div className="text-center space-y-6">
               <img
-                src="https://res.cloudinary.com/dof51pn9b/image/upload/v1771012750/meeting2-mDUlSLPI_dm7qvm.png"
+                src="https://res.cloudinary.com/counsellorcloud/image/upload/v1771012750/meeting2-mDUlSLPI_dm7qvm.png"
                 alt="meeting2"
                 className="max-w-xs lg:max-w-sm mx-auto"
                 aria-hidden="true"

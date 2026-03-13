@@ -102,5 +102,6 @@ export const sendMessageAPI = (conversationId, text) =>
   API.post(`/messages/${conversationId}`, { text });
 export const markConversationRead = (conversationId) =>
   API.put(`/messages/${conversationId}/read`);
+export const getUnreadDmCount = () => API.get("/messages/unread-count");
 
 export default API;

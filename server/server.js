@@ -51,26 +51,33 @@ app.use(generalLimiter);
 // ===========================================
 
 const allowedOrigins = process.env.CLIENT_ORIGIN
-	? process.env.CLIENT_ORIGIN.split(",").map((origin) => origin.trim())
-	: ["http://localhost:3000"];
+    ? process.env.CLIENT_ORIGIN.split(",").map((o) => o.trim())
+    : ["http://localhost:3000"];
+
+// Add this — matches all your Vercel preview deployments
+const allowedPatterns = [/^https:\/\/counsellor-.*\.vercel\.app$/];
 
 app.use(
-	cors({
-		origin: (origin, callback) => {
-			// Allow requests with no origin (mobile apps, curl, etc.)
-			if (!origin) return callback(null, true);
+    cors({
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
 
-			if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
-				callback(null, true);
-			} else {
-				callback(new Error("Not allowed by CORS"));
-			}
-		},
-		credentials: true,
-		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-		allowedHeaders: ["Content-Type", "Authorization"],
-		maxAge: 86400, // Cache preflight for 24 hours
-	})
+            const isAllowed =
+                allowedOrigins.includes(origin) ||
+                allowedOrigins.includes("*") ||
+                allowedPatterns.some((pattern) => pattern.test(origin));
+
+            if (isAllowed) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        maxAge: 86400,
+    })
 );
 
 // ===========================================

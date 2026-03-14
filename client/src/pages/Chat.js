@@ -495,7 +495,7 @@ function Chat() {
         }
       }
     },
-    [fetchMessages, socket]
+    [fetchMessages, socket, refreshUnreadDmCount]
   );
 
   // ── LOAD OLDER MESSAGES ───────────────────────────────────────

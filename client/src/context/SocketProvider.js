@@ -210,7 +210,7 @@ function SocketProvider({ children }) {
 
         window.addEventListener("auth-change", handleAuthChange);
         return () => window.removeEventListener("auth-change", handleAuthChange);
-    }, [setupSocket, refreshUnreadCount]);
+    }, [setupSocket, refreshUnreadCount, refreshUnreadDmCount]);
 
     const value = {
         socket,

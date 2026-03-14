@@ -47,36 +47,48 @@ app.use(helmetConfig);
 app.use(generalLimiter);
 
 // ===========================================
-// CORS CONFIGURATION
+// CORS CONFIGURATION (FIXED)
 // ===========================================
 
 const allowedOrigins = process.env.CLIENT_ORIGIN
     ? process.env.CLIENT_ORIGIN.split(",").map((o) => o.trim())
     : ["http://localhost:3000"];
 
-// Add this — matches all your Vercel preview deployments
-const allowedPatterns = [/^https:\/\/counsellor-.*\.vercel\.app$/];
+// Pattern matching for Vercel preview deployments
+const allowedPatterns = [
+    /^https:\/\/counsellor-.*\.vercel\.app$/,
+    /^https:\/\/.*\.vercel\.app$/  // Allow all Vercel previews
+];
 
 app.use(
     cors({
         origin: (origin, callback) => {
+            // Allow requests with no origin (mobile apps, Postman, curl, etc.)
             if (!origin) return callback(null, true);
 
-            const isAllowed =
-                allowedOrigins.includes(origin) ||
-                allowedOrigins.includes("*") ||
-                allowedPatterns.some((pattern) => pattern.test(origin));
-
-            if (isAllowed) {
-                callback(null, true);
-            } else {
-                callback(new Error("Not allowed by CORS"));
+            // Check exact match in allowed origins
+            if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+                return callback(null, true);
             }
+
+            // Check pattern match (Vercel previews)
+            if (allowedPatterns.some((pattern) => pattern.test(origin))) {
+                return callback(null, true);
+            }
+
+            // Allow localhost for development
+            if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+                return callback(null, true);
+            }
+
+            // Reject all others
+            console.warn(`⚠️ CORS blocked origin: ${origin}`);
+            callback(new Error("Not allowed by CORS"));
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
-        maxAge: 86400,
+        maxAge: 86400, // Cache preflight for 24 hours
     })
 );
 
@@ -160,7 +172,29 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
 	cors: {
-		origin: allowedOrigins,
+		origin: (origin, callback) => {
+			// Allow requests with no origin
+			if (!origin) return callback(null, true);
+
+			// Check exact match
+			if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+				return callback(null, true);
+			}
+
+			// Check pattern match (Vercel previews)
+			if (allowedPatterns.some((pattern) => pattern.test(origin))) {
+				return callback(null, true);
+			}
+
+			// Allow localhost
+			if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+				return callback(null, true);
+			}
+
+			// Reject
+			console.warn(`⚠️ Socket.IO CORS blocked origin: ${origin}`);
+			callback(new Error("Not allowed by CORS"));
+		},
 		methods: ["GET", "POST"],
 		credentials: true,
 	},

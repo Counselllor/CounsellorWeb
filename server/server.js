@@ -9,6 +9,7 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const { Server } = require("socket.io");
 
 // Route imports
@@ -37,41 +38,65 @@ const Message = require("./models/Message");
 const app = express();
 
 // ===========================================
+// CORS CONFIGURATION
+// ===========================================
+// Must be defined before use in both Express and Socket.IO
+
+const allowedOrigins = process.env.CLIENT_ORIGIN
+	? process.env.CLIENT_ORIGIN.split(",").map((o) => o.trim())
+	: ["http://localhost:3000"];
+
+// Scoped only to this project's Vercel preview URLs — not all of vercel.app
+const allowedPatterns = [
+	/^https:\/\/counsellor-[a-z0-9-]+\.vercel\.app$/,
+];
+
+/**
+ * Shared origin validator used by both Express CORS and Socket.IO CORS.
+ * Returns true if the origin is allowed, false otherwise.
+ */
+const isOriginAllowed = (origin) => {
+	if (!origin) return true; // Allow Postman, curl, mobile apps
+	if (allowedOrigins.includes("*")) return true;
+	if (allowedOrigins.includes(origin)) return true;
+	if (allowedPatterns.some((pattern) => pattern.test(origin))) return true;
+	// Allow localhost variants for local development
+	if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+	return false;
+};
+
+const corsOriginHandler = (origin, callback) => {
+	if (isOriginAllowed(origin)) {
+		callback(null, true);
+	} else {
+		console.warn(`⚠️  CORS blocked origin: ${origin}`);
+		callback(new Error("Not allowed by CORS"));
+	}
+};
+
+// ===========================================
 // SECURITY MIDDLEWARE
 // ===========================================
 
-// Security headers (helmet)
+// Security headers
 app.use(helmetConfig);
 
-// Rate limiting - apply to all requests
-app.use(generalLimiter);
-
-// ===========================================
-// CORS CONFIGURATION
-// ===========================================
-
-const allowedOrigins = process.env.CLIENT_ORIGIN
-	? process.env.CLIENT_ORIGIN.split(",").map((origin) => origin.trim())
-	: ["http://localhost:3000"];
-
+// FIX #3: CORS must come before rate limiter so that rate-limited responses
+// (429) still carry the correct Access-Control-Allow-Origin header.
+// Previously the limiter ran first, causing browsers to surface a false
+// CORS error instead of the real 429.
 app.use(
 	cors({
-		origin: (origin, callback) => {
-			// Allow requests with no origin (mobile apps, curl, etc.)
-			if (!origin) return callback(null, true);
-
-			if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
-				callback(null, true);
-			} else {
-				callback(new Error("Not allowed by CORS"));
-			}
-		},
+		origin: corsOriginHandler,
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization"],
 		maxAge: 86400, // Cache preflight for 24 hours
 	})
 );
+
+// Rate limiting — applied after CORS so error responses include CORS headers
+app.use(generalLimiter);
 
 // ===========================================
 // BODY PARSING MIDDLEWARE
@@ -131,12 +156,10 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
 	console.error("Server Error:", err.message);
 
-	// CORS error
 	if (err.message === "Not allowed by CORS") {
 		return res.status(403).json({ message: "CORS policy violation" });
 	}
 
-	// Default error response
 	res.status(err.status || 500).json({
 		message:
 			process.env.NODE_ENV === "production"
@@ -153,7 +176,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
 	cors: {
-		origin: allowedOrigins,
+		// FIX: Socket.IO now uses the same shared origin validator as Express
+		origin: corsOriginHandler,
 		methods: ["GET", "POST"],
 		credentials: true,
 	},
@@ -176,10 +200,8 @@ io.use(async (socket, next) => {
 			return next(new Error("Authentication required"));
 		}
 
-		// Verify JWT — same secret as the REST API auth middleware
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-		// Attach user info to the socket for use in event handlers
 		const user = await User.findById(decoded.id).select("name username role");
 		if (!user) {
 			return next(new Error("User not found"));
@@ -209,17 +231,51 @@ io.on("connection", async (socket) => {
 
 	// ── JOIN PERSONAL ROOM ──────────────────────────────────
 	// Every user joins a room named "user:<userId>"
-	// This allows targeted emits from controllers (e.g., notification, DM)
+	// This allows targeted emits from controllers (e.g. notifications, DMs)
 	socket.join(`user:${userId}`);
 
 	// ── UPDATE ONLINE STATUS ────────────────────────────────
 	try {
-		await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
+		await User.findByIdAndUpdate(userId, {
+			isOnline: true,
+			lastSeen: new Date(),
+		});
 	} catch (err) {
 		console.error("Error updating online status:", err.message);
 	}
 
-	// ── GLOBAL CHAT (existing feature — broadcast to all) ───
+	// FIX #5: Cache conversationId → recipientId in memory per socket connection
+	// so dm:typing doesn't hit the database on every keystroke.
+	const recipientCache = new Map();
+
+	/**
+	 * Resolves the recipient ID for a given conversation, using an in-memory
+	 * cache to avoid redundant DB lookups during rapid events (e.g. typing).
+	 */
+	const getRecipientId = async (conversationId) => {
+		if (recipientCache.has(conversationId)) {
+			return recipientCache.get(conversationId);
+		}
+
+		const conversation = await Conversation.findOne({
+			_id: conversationId,
+			participants: userId,
+		}).lean();
+
+		if (!conversation) return null;
+
+		const recipientId = conversation.participants.find(
+			(p) => String(p) !== userId
+		);
+
+		if (!recipientId) return null;
+
+		const rid = String(recipientId);
+		recipientCache.set(conversationId, rid);
+		return rid;
+	};
+
+	// ── GLOBAL CHAT (broadcast to all) ─────────────────────
 	socket.on("message", (payload) => {
 		io.emit("message", {
 			...payload,
@@ -229,20 +285,22 @@ io.on("connection", async (socket) => {
 	});
 
 	// ── DM: SEND MESSAGE ────────────────────────────────────
-	// Primary real-time message send path.
 	// Client emits: { conversationId, text }
-	// Server: saves to DB → updates conversation → emits to recipient
+	// Server: saves to DB → updates conversation atomically → emits to recipient
 	socket.on("dm:send", async ({ conversationId, text }, callback) => {
 		try {
-			if (!text?.trim() || !conversationId) {
+			// FIX #7: Trim once and reuse throughout
+			const trimmedText = text?.trim();
+
+			if (!trimmedText || !conversationId) {
 				return callback?.({ error: "Invalid message data" });
 			}
 
-			if (text.trim().length > 5000) {
+			if (trimmedText.length > 5000) {
 				return callback?.({ error: "Message too long" });
 			}
 
-			// Verify user is a participant
+			// Verify sender is a participant
 			const conversation = await Conversation.findOne({
 				_id: conversationId,
 				participants: userId,
@@ -252,27 +310,42 @@ io.on("connection", async (socket) => {
 				return callback?.({ error: "Conversation not found" });
 			}
 
-			// Save message
-			const message = await Message.create({
-				conversation: conversationId,
-				sender: userId,
-				text: text.trim(),
-			});
-
-			// Update conversation lastMessage + unread count
+			// FIX #2: Guard against undefined recipientId before using it
 			const recipientId = conversation.participants.find(
 				(p) => String(p) !== userId
 			);
 
-			conversation.lastMessage = {
-				text: text.trim().substring(0, 100),
-				sender: userId,
-				createdAt: message.createdAt,
-			};
+			if (!recipientId) {
+				return callback?.({ error: "Could not determine recipient" });
+			}
 
-			const currentUnread = conversation.unreadCounts?.get(String(recipientId)) || 0;
-			conversation.unreadCounts.set(String(recipientId), currentUnread + 1);
-			await conversation.save();
+			const recipientIdStr = String(recipientId);
+
+			// Save message to DB
+			const message = await Message.create({
+				conversation: conversationId,
+				sender: userId,
+				text: trimmedText,
+			});
+
+			// FIX #1: Update conversation atomically using $set + $inc to eliminate
+			// the read-modify-write race condition that caused lost unread increments
+			// when two messages arrived in quick succession.
+			await Conversation.findByIdAndUpdate(conversationId, {
+				$set: {
+					lastMessage: {
+						text: trimmedText.substring(0, 100),
+						sender: userId,
+						createdAt: message.createdAt,
+					},
+				},
+				$inc: {
+					[`unreadCounts.${recipientIdStr}`]: 1,
+				},
+			});
+
+			// Also warm the recipient cache for this socket
+			recipientCache.set(conversationId, recipientIdStr);
 
 			// Populate sender info for the emit payload
 			const populated = await Message.findById(message._id)
@@ -280,7 +353,7 @@ io.on("connection", async (socket) => {
 				.lean();
 
 			// Emit to recipient's personal room
-			io.to(`user:${recipientId}`).emit("dm:receive", {
+			io.to(`user:${recipientIdStr}`).emit("dm:receive", {
 				message: populated,
 				conversationId,
 			});
@@ -294,35 +367,34 @@ io.on("connection", async (socket) => {
 	});
 
 	// ── DM: TYPING INDICATOR ────────────────────────────────
-	// Not persisted — just relayed in real-time
-	socket.on("dm:typing", ({ conversationId, isTyping }) => {
-		// Find the conversation to get the recipient
-		Conversation.findOne({
-			_id: conversationId,
-			participants: userId,
-		}).then((conversation) => {
-			if (!conversation) return;
+	// Not persisted — just relayed in real-time.
+	// FIX #5 + #6: Validate payload and use in-memory cache instead of a DB
+	// query on every keystroke.
+	socket.on("dm:typing", async ({ conversationId, isTyping }) => {
+		// FIX #6: Validate payload before doing anything
+		if (!conversationId) return;
 
-			const recipientId = conversation.participants.find(
-				(p) => String(p) !== userId
-			);
+		try {
+			const recipientId = await getRecipientId(conversationId);
+			if (!recipientId) return;
 
-			if (recipientId) {
-				io.to(`user:${recipientId}`).emit("dm:typing", {
-					conversationId,
-					userId,
-					username: socket.user.username,
-					isTyping,
-				});
-			}
-		}).catch((err) => {
-			console.error("dm:typing error:", err);
-		});
+			io.to(`user:${recipientId}`).emit("dm:typing", {
+				conversationId,
+				userId,
+				username: socket.user.username,
+				isTyping,
+			});
+		} catch (err) {
+			console.error("dm:typing error:", err.message);
+		}
 	});
 
 	// ── DM: MARK AS READ ────────────────────────────────────
-	// Client emits when they view a conversation
+	// Client emits when they open/view a conversation
 	socket.on("dm:markRead", async ({ conversationId }) => {
+		// FIX #6: Validate payload
+		if (!conversationId) return;
+
 		try {
 			const conversation = await Conversation.findOne({
 				_id: conversationId,
@@ -331,7 +403,7 @@ io.on("connection", async (socket) => {
 
 			if (!conversation) return;
 
-			// Mark messages from the other user as read
+			// Mark all unread messages from the other user as read
 			await Message.updateMany(
 				{
 					conversation: conversationId,
@@ -341,31 +413,36 @@ io.on("connection", async (socket) => {
 				{ isRead: true }
 			);
 
-			// Reset unread count
-			conversation.unreadCounts.set(userId, 0);
-			await conversation.save();
-
-			// Notify the other user (read receipts)
+			// FIX #2: Guard against undefined otherUserId
 			const otherUserId = conversation.participants.find(
 				(p) => String(p) !== userId
 			);
 
-			if (otherUserId) {
-				io.to(`user:${otherUserId}`).emit("dm:read", {
-					conversationId,
-					readBy: userId,
-				});
-			}
+			if (!otherUserId) return;
+
+			// Reset this user's unread count atomically
+			await Conversation.findByIdAndUpdate(conversationId, {
+				$set: { [`unreadCounts.${userId}`]: 0 },
+			});
+
+			// Notify the other user (read receipt)
+			io.to(`user:${String(otherUserId)}`).emit("dm:read", {
+				conversationId,
+				readBy: userId,
+			});
 		} catch (err) {
-			console.error("dm:markRead error:", err);
+			console.error("dm:markRead error:", err.message);
 		}
 	});
 
 	// ── DISCONNECT ──────────────────────────────────────────
 	socket.on("disconnect", async (reason) => {
-		console.log(`Socket disconnected: ${socket.user.username} (${reason})`);
+		console.log(`🔌 Socket disconnected: ${socket.user.username} (${reason})`);
 		try {
-			await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
+			await User.findByIdAndUpdate(userId, {
+				isOnline: false,
+				lastSeen: new Date(),
+			});
 		} catch (err) {
 			console.error("Error updating offline status:", err.message);
 		}
@@ -382,28 +459,43 @@ io.on("connection", async (socket) => {
 
 const PORT = process.env.PORT || 5000;
 
-const listener = server.listen(PORT, () => {
-	console.log(`🚀 Server running on port ${PORT}`);
-	console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
-});
+// FIX #9: Only start listening when this file is run directly (node server.js),
+// not when it is require()'d by a test suite. Prevents the server from binding
+// a port during imports, which would make unit/integration tests unreliable.
+if (require.main === module) {
+	server.listen(PORT, () => {
+		console.log(`🚀 Server running on port ${PORT}`);
+		console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
+	});
+}
 
 // ===========================================
 // GRACEFUL SHUTDOWN
 // ===========================================
 
-const shutdown = (signal) => {
+const shutdown = async (signal) => {
 	console.log(`\nReceived ${signal}. Closing server...`);
 
-	listener.close(() => {
-		console.log("HTTP server closed.");
+	server.close(async () => {
+		console.log("✅ HTTP server closed.");
+
+		// FIX #8: Close the MongoDB connection before exiting so in-flight
+		// writes are flushed and the process exits cleanly.
+		try {
+			await mongoose.connection.close();
+			console.log("✅ MongoDB connection closed.");
+		} catch (err) {
+			console.error("Error closing MongoDB connection:", err.message);
+		}
+
 		process.exit(0);
 	});
 
-	// Force exit after 5 seconds
+	// Force exit after 10 seconds if something hangs
 	setTimeout(() => {
-		console.error("Forcing exit after timeout");
+		console.error("⚠️  Forcing exit after timeout");
 		process.exit(1);
-	}, 5000);
+	}, 10000);
 };
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));

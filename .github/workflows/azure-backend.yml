@@ -1,0 +1,53 @@
+# Azure App Service deployment workflow for Node.js backend
+# Deploys server/ subdirectory to Azure App Service
+#
+# SETUP REQUIRED:
+# 1. In Azure Portal → App Service → Deployment Center → connect GitHub
+#    Azure will create a publish profile automatically
+# 2. OR manually: Go to App Service → Settings → Configuration → Download Publish Profile
+#    Then in GitHub → Repo Settings → Secrets → Add "AZURE_WEBAPP_PUBLISH_PROFILE"
+# 3. Update 'AZURE_WEBAPP_NAME' below with your actual App Service name
+
+name: Deploy Backend to Azure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**'  # Only deploy when server code changes
+  workflow_dispatch:    # Allow manual trigger
+
+env:
+  AZURE_WEBAPP_NAME: counsellor-backend  # ← Change this to your App Service name
+  NODE_VERSION: '20.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Create deployment package
+        run: |
+          cd server
+          # Create a zip of the server directory for deployment
+          zip -r ../deploy.zip . -x "node_modules/*" ".env"
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: deploy.zip

@@ -29,8 +29,12 @@ function SocketProvider({ children }) {
     const [socket, setSocket] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [unreadDmCount, setUnreadDmCount] = useState(0);
     const [notifications, setNotifications] = useState([]);
     const socketRef = useRef(null);
+
+    // Flag ref: Chat.js sets this to true when open, false when unmounting
+    const isChatOpenRef = useRef(false);
 
     // DM event listeners — Chat.js subscribes/unsubscribes via these refs
     const dmListenersRef = useRef({
@@ -55,6 +59,25 @@ function SocketProvider({ children }) {
             }
         } catch (err) {
             console.error("Error fetching unread count:", err);
+        }
+    }, []);
+
+    // Fetch unread DM count from REST API
+    const refreshUnreadDmCount = useCallback(async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const res = await fetch(`${SOCKET_URL}/api/messages/unread-count`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setUnreadDmCount(data.count);
+            }
+        } catch (err) {
+            console.error("Error fetching unread DM count:", err);
         }
     }, []);
 
@@ -109,12 +132,10 @@ function SocketProvider({ children }) {
             // Forward to Chat.js if it's listening
             if (dmListenersRef.current.onReceive) {
                 dmListenersRef.current.onReceive(data);
-            } else {
-                // Chat.js not open — show a toast notification
-                const senderName = data.message?.sender?.name || data.message?.sender?.username || "Someone";
-                toast.info(`💬 ${senderName}: ${data.message?.text?.substring(0, 50)}...`, {
-                    autoClose: 4000,
-                });
+            }
+            // Only increment badge when user is NOT on the Chat page
+            if (!isChatOpenRef.current) {
+                setUnreadDmCount((prev) => prev + 1);
             }
         });
 
@@ -155,6 +176,7 @@ function SocketProvider({ children }) {
         socketRef.current = socketInstance;
         setSocket(socketInstance);
         refreshUnreadCount();
+        refreshUnreadDmCount();
 
         return () => {
             socketInstance.disconnect();
@@ -181,22 +203,28 @@ function SocketProvider({ children }) {
                     socketRef.current = socketInstance;
                     setSocket(socketInstance);
                     refreshUnreadCount();
+                    refreshUnreadDmCount();
                 }, 100);
             }
         };
 
         window.addEventListener("auth-change", handleAuthChange);
         return () => window.removeEventListener("auth-change", handleAuthChange);
-    }, [setupSocket, refreshUnreadCount]);
+    }, [setupSocket, refreshUnreadCount, refreshUnreadDmCount]);
 
     const value = {
         socket,
         isConnected,
         unreadCount,
         setUnreadCount,
+        unreadDmCount,
+        setUnreadDmCount,
         notifications,
         setNotifications,
         refreshUnreadCount,
+        refreshUnreadDmCount,
+        // Chat.js sets this ref to true/false on mount/unmount
+        isChatOpenRef,
         // DM listener registration — Chat.js uses these
         dmListenersRef,
     };

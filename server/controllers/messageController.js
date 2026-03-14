@@ -124,8 +124,11 @@ const getOrCreateConversation = async (req, res) => {
         const otherUser = populated.participants.find(
             (p) => String(p._id) !== String(req.user._id)
         );
+        const myUnread = populated.unreadCounts?.get
+            ? populated.unreadCounts.get(String(req.user._id)) || 0
+            : populated.unreadCounts?.[String(req.user._id)] || 0;
 
-        res.json({ ...populated, otherUser });
+        res.json({ ...populated, otherUser, myUnread });
     } catch (err) {
         console.error("Error creating conversation:", err);
         res.status(500).json({ message: "Error creating conversation" });
@@ -313,10 +316,37 @@ const markConversationRead = async (req, res) => {
     }
 };
 
+/**
+ * GET /api/messages/unread-count
+ * Returns the total number of unread DMs across all conversations for the current user.
+ * Used by the Navbar to show a red badge on the chat icon.
+ */
+const getUnreadDmCount = async (req, res) => {
+    try {
+        const conversations = await Conversation.find({
+            participants: req.user._id,
+        }).lean();
+
+        let totalUnread = 0;
+        for (const conv of conversations) {
+            const unread = conv.unreadCounts?.get
+                ? conv.unreadCounts.get(String(req.user._id)) || 0
+                : conv.unreadCounts?.[String(req.user._id)] || 0;
+            totalUnread += unread;
+        }
+
+        res.json({ count: totalUnread });
+    } catch (err) {
+        console.error("Error fetching unread DM count:", err);
+        res.status(500).json({ message: "Error fetching unread count" });
+    }
+};
+
 module.exports = {
     getConversations,
     getOrCreateConversation,
     getMessages,
     sendMessage,
     markConversationRead,
+    getUnreadDmCount,
 };

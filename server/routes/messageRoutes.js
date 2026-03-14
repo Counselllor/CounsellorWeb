@@ -13,6 +13,7 @@ const {
     getMessages,
     sendMessage,
     markConversationRead,
+    getUnreadDmCount,
 } = require("../controllers/messageController");
 
 const protect = require("../middleware/authMiddleware");
@@ -33,6 +34,13 @@ router.get("/conversations", getConversations);
  * @access  Private
  */
 router.post("/conversations", getOrCreateConversation);
+
+/**
+ * @route   GET /api/messages/unread-count
+ * @desc    Get total unread DM count across all conversations
+ * @access  Private
+ */
+router.get("/unread-count", getUnreadDmCount);
 
 /**
  * @route   GET /api/messages/:conversationId

@@ -3,6 +3,16 @@ node_modules/
 server/node_modules/
 client/node_modules/
 
+# package-lock.json
+package-lock.json
+server/package-lock.json
+client/package-lock.json
+
+# package.json
+package.json
+server/package.json
+client/package.json
+
 # Environment variables (NEVER commit these!)
 .env
 .env.local

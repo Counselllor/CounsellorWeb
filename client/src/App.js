@@ -1,3 +1,7 @@
+/**
+ * App.js - Main application component that sets up routing and context providers.
+ * updated page to be closed inside a page-shell div for better styling and layout.
+ */
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Register from "./pages/Register";
@@ -13,11 +17,13 @@ import Profile from "./pages/Profile";
 import NotificationsPage from "./pages/NotificationsPage";
 import SocketProvider from "./context/SocketProvider";
 import { ToastContainer } from "react-toastify";
-
-
+import "./uiredesign.css";
 
 function App() {
   return (
+    <>
+
+    <div className="page-shell">
     <Router>
       <SocketProvider>
         <Navbar />
@@ -77,6 +83,8 @@ function App() {
         />
       </SocketProvider>
     </Router>
+    </div>
+    </>
   );
 }
 

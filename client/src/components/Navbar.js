@@ -1,10 +1,64 @@
-
+// Imporovements made to the navbar component to improve the ui and ux of the navigation bar.
+// added Icon function for rendering SVG icons based on name props.
+// updated Navbar component of signup and login with links to have new revised ui.
+// other functions and feature remain the same, including notification handling, profile dropdown.
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useSocket } from "../context/SocketProvider";
 import { markNotificationAsRead, markAllNotificationsAsRead } from "../api/api";
 import logo from "../assets/logo.svg";
+import "../uiredesign.css";
+
+function Icon({ name, className = "h-5 w-5" }) {
+  const paths = {
+    book: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z" />,
+    briefcase: <path d="M9 6V4h6v2m5 4H4m1-4h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm5 7h4" />,
+    graduation: <path d="m3 9 9-5 9 5-9 5-9-5Zm3 3v4.5c3.5 2.3 8.5 2.3 12 0V12m3-3v6" />,
+    spark: <path d="m12 2 1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2Zm7 13 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />,
+    user: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </>
+    ),
+    trophy: (
+      <>
+        {/* cup body */}
+        <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
+        {/* handles */}
+        <path d="M8 6H5a1 1 0 0 0-1 1v1a3 3 0 0 0 3 3h1" />
+        <path d="M16 6h3a1 1 0 0 1 1 1v1a3 3 0 0 1-3 3h-1" />
+        {/* stem and base */}
+        <path d="M12 13v4" />
+        <path d="M8.5 20h7M9.5 17h5a1 1 0 0 1 1 1v2h-7v-2a1 1 0 0 1 1-1Z" />
+      </>
+    ),
+    target: (
+      <>
+        {/* outer ring, middle ring, bullseye */}
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="5" />
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+      </>
+    ),
+  };
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+    >
+      {paths[name]}
+    </svg>
+  );
+}
 
 function Navbar() {
   const navigate = useNavigate();
@@ -170,11 +224,11 @@ function Navbar() {
 
   // Navigation links configuration
   const navLinks = [
-    { path: "/colleges", label: "Colleges", icon: "🎓" },
-    { path: "/topUniversity", label: "Top Universities", icon: "🏆" },
-    { path: "/jobs", label: "Jobs", icon: "💼" },
-    { path: "/courses", label: "Courses", icon: "📚" },
-    { path: "/support", label: "Career Support", icon: "🎯" },
+    { path: "/colleges", label: "Colleges", icon: <Icon name="graduation" /> },
+    { path: "/topUniversity", label: "Top Universities", icon: <Icon name="trophy" /> },
+    { path: "/jobs", label: "Jobs", icon:<Icon name="briefcase" /> },
+    { path: "/courses", label: "Courses", icon: <Icon name="book" /> },
+    { path: "/support", label: "Career Support", icon: <Icon name="target" /> },
   ];
 
   // Filter links based on auth status
@@ -187,24 +241,16 @@ function Navbar() {
       role="navigation"
       aria-label="Main navigation"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-20">
+      <div className="site-header">
 
           {/* Logo - Always visible */}
           <Link
             to={token ? "/colleges" : "/login"}
-            className="flex items-center space-x-2 sm:space-x-3 group outline-none rounded-lg px-2 py-1 -ml-2"
+            className="brand"
             aria-label="Counsellor App Home"
           >
-            <img
-              src={logo}
-              alt=""
-              className="h-8 w-8 sm:h-10 sm:w-10 transition-transform group-hover:scale-110"
-              aria-hidden="true"
-            />
-            <span className="font-bold text-lg sm:text-xl text-blue-700 group-hover:text-blue-800 transition-colors">
-              Counsellor
-            </span>
+            <img src={logo} alt="" className="h-10 w-10" aria-hidden="true" />
+            <span>Counsellor</span>
           </Link>
 
           {/* Desktop Navigation - Hidden on mobile */}
@@ -213,7 +259,7 @@ function Navbar() {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none ${isActive(link.path)
+                className={`flex flex-row items-center gap-1 whitespace-nowrap px-1 py-2 ${isActive(link.path)
                   ? "bg-blue-50 text-blue-700"
                   : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
                   }`}
@@ -442,16 +488,16 @@ function Navbar() {
               </div>
             ) : (
               // Not logged in - Show Login/Register buttons (Desktop only)
-              <div className="hidden md:flex items-center space-x-2">
+              <div className="header-actions">
                 <Link
                   to="/login"
-                  className="px-4 py-2 text-sm font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  className="text-button"
                 >
-                  Login
+                  Log in
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  className="nav-cta"
                 >
                   Register
                 </Link>
@@ -477,7 +523,7 @@ function Navbar() {
               )}
             </button>
           </div>
-        </div>
+        {/* </div> */}
       </div>
 
       {/* Mobile Menu - Slide in from right */}

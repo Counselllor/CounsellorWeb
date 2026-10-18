@@ -1,4 +1,10 @@
-
+/**
+  * Login Page Component
+  * added Icon function for rendering SVG icons based on name props.
+  * added new visual design and layout for the login page.
+  * added page indicator for login and register page.
+  * other functions and feature remain the same, including form validation, password visibility toggle, and captcha verification.
+ */
 
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -6,6 +12,59 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { loginUser } from "../api/api";
 import Footer from "../components/Footer";
+import "../uiredesign.css";
+
+function Icon({ name, className = "h-5 w-5" }) {
+  const paths = {
+    arrow: <path d="M5 12h14m-5-5 5 5-5 5" />,
+    book: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z" />,
+    briefcase: <path d="M9 6V4h6v2m5 4H4m1-4h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm5 7h4" />,
+    check: <path d="m5 12 4 4L19 6" />,
+    eye: (
+      <>
+        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+        <circle cx="12" cy="12" r="2.5" />
+      </>
+    ),
+    eyeOff: (
+      <>
+        <path d="m4 4 16 16M10.6 6.2A10.6 10.6 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-2.1 2.8M7.1 7.1C4.1 8.8 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 2.8-.4M10.4 10.4a2.3 2.3 0 0 0 3.2 3.2" />
+      </>
+    ),
+    graduation: <path d="m3 9 9-5 9 5-9 5-9-5Zm3 3v4.5c3.5 2.3 8.5 2.3 12 0V12m3-3v6" />,
+    lock: (
+      <>
+        <rect x="4" y="10" width="16" height="11" rx="3" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3" />
+      </>
+    ),
+    mail: <path d="M3 6h18v12H3V6Zm1 1 8 6 8-6" />,
+    phone: <path d="M7.2 3H4.5A1.5 1.5 0 0 0 3 4.5C3 13.6 10.4 21 19.5 21a1.5 1.5 0 0 0 1.5-1.5v-2.7l-4.2-1.4-1.2 2.1a14.2 14.2 0 0 1-9.1-9.1l2.1-1.2L7.2 3Z" />,
+    refresh: <path d="M20 7v5h-5M4 17v-5h5m9.5-3A7 7 0 0 0 6.2 6.2L4 9m16 6-2.2 2.8A7 7 0 0 1 5.5 15" />,
+    spark: <path d="m12 2 1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2Zm7 13 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />,
+    user: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </>
+    ),
+  };
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+    >
+      {paths[name]}
+    </svg>
+  );
+}
 
 function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -16,6 +75,7 @@ function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [mode, setMode] = useState("login");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -124,34 +184,49 @@ function Login() {
       setIsSubmitting(false);
     }
   };
-
+  
+  const handlePointerMove = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+    event.currentTarget.style.setProperty("--mx", `${x * 18}px`);
+    event.currentTarget.style.setProperty("--my", `${y * 18}px`);
+  }; 
   return (
     <>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl w-full bg-white shadow-2xl rounded-2xl grid grid-cols-1 md:grid-cols-2 overflow-hidden animate-scaleIn">
-
+      <div className="app-shell" onMouseMove={handlePointerMove}>
+        <div className="auth-card">
           {/* LEFT - LOGIN FORM */}
-          <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center">
-            <div className="mb-6 sm:mb-8">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 text-gray-800">
-                Welcome Back! 👋
-              </h1>
-              <h2 className="text-base sm:text-lg font-medium text-gray-600">
-                Log in to your account
-              </h2>
+          <div className="form-panel">
+
+            <div className="mode-switch" aria-label="Choose authentication mode">
+              <span className="switch-highlight" />
+              <button type="button" aria-pressed="true" className="active">
+                Log in
+              </button>
+              <button type="button" aria-pressed="false" onClick={() => navigate("/register")}>
+                Sign up
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" noValidate>
+            <div className="heading-wrap">
+              <p className="eyebrow">Welcome back</p>
+              <h1>Continue your journey</h1>
+              <p>Sign in to explore opportunities picked for your future.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="auth-form" noValidate>
               {/* Email Field */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address <span className="text-red-500">*</span>
+                <label htmlFor="email" className="field-group">
+                  Email Address
                 </label>
-                <div className={`flex items-center border-2 rounded-lg px-3 py-2.5 sm:py-3 transition-all ${errors.email && touched.email
-                  ? "border-red-500 bg-red-50"
-                  : "border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
+                <div className={`input-shell ${errors.email && touched.email
+                  ? "has-error"
+                  : ""
                   }`}>
-                  <span className="text-gray-400 mr-2 text-lg" aria-hidden="true">✉️</span>
+                  {/* <span className="text-gray-400 mr-2 text-lg" aria-hidden="true">✉️</span> */}
+                  <Icon name="mail" />
                   <input
                     id="email"
                     name="email"
@@ -160,13 +235,13 @@ function Login() {
                     value={form.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    className="w-full outline-none bg-transparent text-sm sm:text-base"
+                    className="has-error"
                     aria-invalid={errors.email && touched.email ? "true" : "false"}
                     aria-describedby={errors.email && touched.email ? "email-error" : undefined}
                   />
                 </div>
                 {errors.email && touched.email && (
-                  <p id="email-error" className="mt-1 text-xs sm:text-sm text-red-600 flex items-center">
+                  <p id="email-error" className="field-error" role="alert">
                     <span className="mr-1">⚠️</span>
                     {errors.email}
                   </p>
@@ -175,14 +250,14 @@ function Login() {
 
               {/* Password Field */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Password <span className="text-red-500">*</span>
+                <label htmlFor="password" className="field-group">
+                  Password
                 </label>
-                <div className={`flex items-center border-2 rounded-lg px-3 py-2.5 sm:py-3 transition-all ${errors.password && touched.password
-                  ? "border-red-500 bg-red-50"
-                  : "border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
+                <div className={`input-shell ${errors.password && touched.password
+                  ? "has-error"
+                  : ""
                   }`}>
-                  <span className="text-gray-400 mr-2 text-lg" aria-hidden="true">🔑</span>
+                    <Icon name="lock" />
                   <input
                     id="password"
                     name="password"
@@ -191,22 +266,22 @@ function Login() {
                     value={form.password}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    className="w-full outline-none bg-transparent text-sm sm:text-base"
+                    className="has-error"
                     aria-invalid={errors.password && touched.password ? "true" : "false"}
                     aria-describedby={errors.password && touched.password ? "password-error" : undefined}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                    className="password-toggle"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                     tabIndex={0}
                   >
-                    <span className="text-lg" aria-hidden="true">{showPassword ? "👁️" : "👁️‍🗨️"}</span>
+                    <span className="eye-icon eye-open" aria-hidden="true">{showPassword ? <Icon name="eye" /> : <Icon name="eyeOff" />}</span>
                   </button>
                 </div>
                 {errors.password && touched.password && (
-                  <p id="password-error" className="mt-1 text-xs sm:text-sm text-red-600 flex items-center">
+                  <p id="password-error" className="field-error" role="alert">
                     <span className="mr-1">⚠️</span>
                     {errors.password}
                   </p>
@@ -215,11 +290,11 @@ function Login() {
 
               {/* Captcha */}
               <div>
-                <label htmlFor="captcha" className="block text-sm font-medium text-gray-700 mb-1">
-                  Verification Code <span className="text-red-500">*</span>
+                <label htmlFor="captcha" className="captcha-wrap">
+                  Verification Code
                 </label>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="bg-gradient-to-r from-blue-100 to-purple-100 px-4 py-3 rounded-lg font-mono text-base sm:text-lg tracking-widest select-none border-2 border-blue-200 shadow-sm text-center sm:text-left flex-shrink-0">
+                <div className="captcha-row">
+                  <div className="captcha-code">
                     {captcha}
                   </div>
                   <input
@@ -240,7 +315,7 @@ function Login() {
                       setErrors({ ...errors, captcha: error });
                     }}
                     className={`flex-1 border-2 rounded-lg px-3 py-2.5 sm:py-3 text-sm sm:text-base transition-all outline-none ${errors.captcha && touched.captcha
-                      ? "border-red-500 bg-red-50"
+                      ? "has-error"
                       : "border-gray-300 focus:border-blue-500"
                       }`}
                     aria-invalid={errors.captcha && touched.captcha ? "true" : "false"}
@@ -249,15 +324,15 @@ function Login() {
                   <button
                     type="button"
                     onClick={refreshCaptcha}
-                    className="p-2.5 sm:p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors outline-none min-w-[44px] min-h-[44px] flex items-center justify-center flex-shrink-0"
+                    className="captcha-refresh"
                     aria-label="Refresh captcha"
                     title="Refresh captcha"
                   >
-                    <span className="text-xl" aria-hidden="true">🔄</span>
+                    <Icon name="refresh" />
                   </button>
                 </div>
                 {errors.captcha && touched.captcha && (
-                  <p id="captcha-error" className="mt-1 text-xs sm:text-sm text-red-600 flex items-center">
+                  <p id="captcha-error" className="captcha-error">
                     <span className="mr-1">⚠️</span>
                     {errors.captcha}
                   </p>
@@ -265,8 +340,8 @@ function Login() {
               </div>
 
               {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
+              <div className="form-options">
+                <div className="checkbox">
                   <input
                     type="checkbox"
                     id="remember"
@@ -274,13 +349,14 @@ function Login() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="h-4 w-4 text-blue-600 focus:ring-2 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                   />
-                  <label htmlFor="remember" className="text-xs sm:text-sm text-gray-600 cursor-pointer select-none">
+                  <span><Icon name="check" /></span>
+                  <label htmlFor="remember" className="checkbox">
                     Remember me
                   </label>
                 </div>
                 <Link
                   to="/forgot-password"
-                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1"
+                  className="link-button"
                 >
                   Forgot password?
                 </Link>
@@ -290,28 +366,23 @@ function Login() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-lg py-3 sm:py-3.5 transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center min-h-[44px]"
+                className="submit-button"
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
                     Logging in...
                   </>
                 ) : (
                   <>
-                    <span className="mr-2" aria-hidden="true">🚀</span>
-                    Login
+                    Log in to your account
+                    <span className="button-arrow"><Icon name="arrow" /></span>
                   </>
                 )}
               </button>
             </form>
 
             {/* Footer Links */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="alternate">
                 Don&apos;t have an account?{" "}
                 <Link
                   to="/register"
@@ -320,28 +391,40 @@ function Login() {
                   Sign up now
                 </Link>
               </p>
-            </div>
           </div>
 
           {/* RIGHT - ILLUSTRATION (Hidden on mobile) */}
-          <div className="hidden md:flex bg-gradient-to-br from-blue-100 to-purple-100 justify-center items-center p-8">
-            <div className="text-center space-y-6">
-              <img
-                src="https://res.cloudinary.com/counsellorcloud/image/upload/v1771012750/meeting2-mDUlSLPI_dm7qvm.png"
-                alt="meeting2"
-                className="max-w-xs lg:max-w-sm mx-auto"
-                aria-hidden="true"
-              />
-              <div className="space-y-2">
-                <h3 className="text-xl lg:text-2xl font-bold text-gray-800">
-                  Find Your Dream College
-                </h3>
-                <p className="text-sm lg:text-base text-gray-600 max-w-sm mx-auto">
-                  Connect with students, explore colleges, and make informed decisions about your future.
-                </p>
+          <aside className="visual-panel">
+            <div className="grid-lines" />
+            <div className="orb orb-one" />
+            <div className="orb orb-two" />
+            <div className="illustration" aria-hidden="true">
+              <div className="path-line" />
+              <div className="destination-card">
+                <span className="mini-label">Your next step</span>
+                <div className="destination-icon"><Icon name="graduation" /></div>
+                <strong>Dream university</strong>
+                <span className="match"><Icon name="check" /> 96% match</span>
+              </div>
+              <div className="float-card float-card-one">
+                <Icon name="book" />
+                <span><strong>120+</strong> courses</span>
+              </div>
+              <div className="float-card float-card-two">
+                <span className="avatar">A</span>
+                <span><strong>Expert guidance</strong>Always in your corner</span>
               </div>
             </div>
-          </div>
+            <div className="visual-copy">
+              <span className="visual-kicker"><Icon name="spark" /> Built around your ambition</span>
+              <h2>Your future is closer than you think.</h2>
+              <p>Discover courses, compare colleges and get guidance for every important decision.</p>
+              <div className="trust-row">
+                <span className="avatars"><i>M</i><i>J</i><i>S</i></span>
+                <span><strong>10,000+</strong> students moving forward</span>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
       <Footer />

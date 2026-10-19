@@ -75,7 +75,6 @@ function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  const [mode, setMode] = useState("login");
   const navigate = useNavigate();
 
   useEffect(() => {
